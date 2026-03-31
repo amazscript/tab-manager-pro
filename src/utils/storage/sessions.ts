@@ -1,6 +1,27 @@
+/**
+ * @module storage/sessions
+ * @description Provides session management for Tab Manager Pro.
+ * A session is a complete snapshot of all browser windows, tabs, and tab groups
+ * at a given point in time. This module handles capturing, restoring, listing,
+ * deleting, and renaming sessions persisted in Chrome local storage.
+ */
+
 import { Session, SavedWindow, SavedTab, SavedTabGroup } from './types';
 import { groupTabs } from '../browser';
 
+/**
+ * @description Checks whether a given URL can be restored by the extension.
+ * Browser-internal pages (chrome://, about:, edge://, moz-extension://, chrome-extension://)
+ * cannot be opened programmatically and are therefore excluded.
+ *
+ * @param {string} url - The URL to check.
+ * @returns {boolean} `true` if the URL can be opened via `chrome.tabs.create`, `false` otherwise.
+ *
+ * @example
+ * isRestorableUrl('https://example.com');    // true
+ * isRestorableUrl('chrome://settings');       // false
+ * isRestorableUrl('');                        // false
+ */
 function isRestorableUrl(url: string): boolean {
   if (!url) return false;
   return !url.startsWith('chrome://') &&
@@ -10,12 +31,45 @@ function isRestorableUrl(url: string): boolean {
     !url.startsWith('moz-extension://');
 }
 
+/**
+ * @description Generates a short, unique identifier by combining a base-36 timestamp
+ * with a random base-36 suffix.
+ *
+ * @returns {string} A unique ID string (e.g. "lxk3f9a1bc").
+ */
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+/**
+ * @description Manages browser sessions — capturing, restoring, listing, deleting, and renaming.
+ * All methods are static and interact directly with Chrome local storage.
+ *
+ * @class SessionManager
+ *
+ * @example
+ * // Capture the current session
+ * const session = await SessionManager.captureCurrentSession('My Work Session');
+ *
+ * // List all sessions
+ * const sessions = await SessionManager.listSessions();
+ *
+ * // Restore a session
+ * await SessionManager.restoreSession(session.id);
+ */
 export class SessionManager {
-  /** Capture la session courante (toutes les fenetres) */
+  /**
+   * @description Captures the current browser state (all normal windows, their tabs, and tab groups)
+   * and saves it as a new session in Chrome local storage. The new session is prepended
+   * to the sessions list so it appears first.
+   *
+   * @param {string} name - A descriptive name for the session.
+   * @returns {Promise<Session>} The newly created and persisted session object.
+   *
+   * @example
+   * const session = await SessionManager.captureCurrentSession('Friday afternoon');
+   * console.log(`Captured ${session.tabCount} tabs across ${session.windowCount} windows`);
+   */
   static async captureCurrentSession(name: string): Promise<Session> {
     const windows = await chrome.windows.getAll({ populate: true });
     const savedWindows: SavedWindow[] = [];
@@ -23,7 +77,7 @@ export class SessionManager {
     for (const win of windows) {
       if (win.type !== 'normal' || !win.tabs) continue;
 
-      // Recuperer les groupes de cette fenetre
+      // Get groups for this window
       const groupIds = new Set(
         win.tabs.filter(t => t.groupId && t.groupId !== -1).map(t => t.groupId)
       );
@@ -38,7 +92,7 @@ export class SessionManager {
             collapsed: group.collapsed,
           });
         } catch {
-          // Groupe introuvable, on ignore
+          // Group not found, skip
         }
       }
 
@@ -69,7 +123,7 @@ export class SessionManager {
       windowCount: savedWindows.length,
     };
 
-    // Sauvegarder
+    // Save
     const data = await chrome.storage.local.get('sessions');
     const sessions = (data.sessions || []) as Session[];
     sessions.unshift(session);
@@ -78,19 +132,34 @@ export class SessionManager {
     return session;
   }
 
-  /** Restaure une session (ouvre les fenetres et onglets) */
+  /**
+   * @description Restores a previously saved session by opening new browser windows and tabs
+   * to match the session's state. Tabs with non-restorable URLs are skipped.
+   * Tab groups are recreated with their original titles and colors.
+   *
+   * @param {string} sessionId - The unique ID of the session to restore.
+   * @returns {Promise<void>}
+   * @throws {Error} Throws if no session with the given ID is found in storage.
+   *
+   * @example
+   * try {
+   *   await SessionManager.restoreSession('lxk3f9a1bc');
+   * } catch (err) {
+   *   console.error('Failed to restore session:', err.message);
+   * }
+   */
   static async restoreSession(sessionId: string): Promise<void> {
     const data = await chrome.storage.local.get('sessions');
     const sessions = (data.sessions || []) as Session[];
     const session = sessions.find(s => s.id === sessionId);
-    if (!session) throw new Error('Session introuvable');
+    if (!session) throw new Error('Session not found');
 
     for (const savedWin of session.windows) {
-      // Filtrer les onglets non restaurables
+      // Filter non-restorable tabs
       const restorableTabs = savedWin.tabs.filter(t => isRestorableUrl(t.url));
       if (restorableTabs.length === 0) continue;
 
-      // Creer la fenetre avec le premier onglet
+      // Create window with the first tab
       const firstUrl = restorableTabs[0].url;
       const win = await chrome.windows.create({
         url: firstUrl,
@@ -112,17 +181,17 @@ export class SessionManager {
           });
           if (tab.id) createdTabIds.push(tab.id);
         } catch {
-          // Ignorer les onglets qui ne peuvent pas etre ouverts
+          // Skip tabs that cannot be opened
           createdTabIds.push(0);
         }
       }
 
-      // Pinner le premier onglet si necessaire
+      // Pin the first tab if needed
       if (savedWin.tabs[0].pinned && win.tabs?.[0]?.id) {
         await chrome.tabs.update(win.tabs[0].id, { pinned: true });
       }
 
-      // Recreer les groupes
+      // Recreate groups
       for (const savedGroup of savedWin.groups) {
         const memberIndices = savedWin.tabs
           .map((t, idx) => (t.groupId === savedGroup.id ? idx : -1))
@@ -144,13 +213,29 @@ export class SessionManager {
     }
   }
 
-  /** Liste toutes les sessions sauvegardees */
+  /**
+   * @description Retrieves all saved sessions from Chrome local storage.
+   *
+   * @returns {Promise<Session[]>} An array of all saved sessions, ordered by most recent first.
+   *
+   * @example
+   * const sessions = await SessionManager.listSessions();
+   * console.log(`Found ${sessions.length} saved sessions`);
+   */
   static async listSessions(): Promise<Session[]> {
     const data = await chrome.storage.local.get('sessions');
     return (data.sessions || []) as Session[];
   }
 
-  /** Supprime une session */
+  /**
+   * @description Permanently deletes a session from Chrome local storage.
+   *
+   * @param {string} sessionId - The unique ID of the session to delete.
+   * @returns {Promise<void>}
+   *
+   * @example
+   * await SessionManager.deleteSession('lxk3f9a1bc');
+   */
   static async deleteSession(sessionId: string): Promise<void> {
     const data = await chrome.storage.local.get('sessions');
     const sessions = (data.sessions || []) as Session[];
@@ -158,7 +243,17 @@ export class SessionManager {
     await chrome.storage.local.set({ sessions: filtered });
   }
 
-  /** Renomme une session */
+  /**
+   * @description Renames an existing session. If no session matches the given ID,
+   * the operation is silently ignored.
+   *
+   * @param {string} sessionId - The unique ID of the session to rename.
+   * @param {string} newName - The new name to assign to the session.
+   * @returns {Promise<void>}
+   *
+   * @example
+   * await SessionManager.renameSession('lxk3f9a1bc', 'Monday morning tabs');
+   */
   static async renameSession(sessionId: string, newName: string): Promise<void> {
     const data = await chrome.storage.local.get('sessions');
     const sessions = (data.sessions || []) as Session[];

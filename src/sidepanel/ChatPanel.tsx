@@ -1,7 +1,24 @@
+/**
+ * @module sidepanel/ChatPanel
+ * @description Side panel chat component for Tab Manager Pro.
+ * Provides a conversational AI interface where users can control their browser tabs
+ * using natural language commands (e.g., "Close duplicates", "Group tabs").
+ * Messages are sent to the background script for intent parsing and AI processing.
+ * Supports chat history persistence and quick-action suggestion chips.
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage } from '../utils/providers';
 import { ChatHistoryEntry } from '../utils/commands';
 
+/**
+ * @description Represents a single message displayed in the chat UI.
+ * @property {string} id - Unique identifier for the message.
+ * @property {'user' | 'assistant'} role - Whether the message is from the user or the AI assistant.
+ * @property {string} content - The text content of the message.
+ * @property {{ success: boolean; message: string }} [commandResult] - Result of a command execution, if applicable.
+ * @property {number} timestamp - Unix timestamp of when the message was created.
+ */
 interface DisplayMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -10,22 +27,51 @@ interface DisplayMessage {
   timestamp: number;
 }
 
+/** @description Pre-defined quick-action suggestions displayed when the chat is empty. */
 const SUGGESTIONS = [
-  'Ferme les doublons',
-  'Groupe les onglets',
-  'Trie les onglets',
-  'Sauvegarde la session',
-  'Ferme les onglets inactifs',
+  'Close duplicates',
+  'Group tabs',
+  'Sort tabs',
+  'Save session',
+  'Close inactive tabs',
 ];
 
+/**
+ * @description Chat panel component rendered in the Chrome side panel.
+ *
+ * Allows users to interact with an AI assistant that can execute tab management
+ * commands or answer general questions about their open tabs.
+ *
+ * **State variables:**
+ * - `messages` - Array of displayed chat messages (both user and assistant).
+ * - `input` - Current value of the text input field.
+ * - `loading` - Whether a message is being processed by the background script.
+ *
+ * **Refs:**
+ * - `messagesEndRef` - Used to auto-scroll to the latest message.
+ *
+ * **Key handlers:**
+ * - `sendMessage` - Sends a user message to the background script for processing.
+ * - `clearHistory` - Clears all chat history from storage and resets the UI.
+ * - `formatChatError` - Converts raw error strings into user-friendly messages.
+ *
+ * @returns {React.JSX.Element} The rendered chat panel UI.
+ *
+ * @example
+ * // Used as the root component in the side panel entry point:
+ * <ChatPanel />
+ */
 export function ChatPanel() {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * @description Loads the persisted chat history from the background script on mount.
+   * Converts each {@link ChatHistoryEntry} into a pair of user/assistant {@link DisplayMessage} objects.
+   */
   useEffect(() => {
-    // Charger l'historique
     chrome.runtime.sendMessage({ type: 'LIST_CHAT_HISTORY' }, (res) => {
       if (res?.success && res.history) {
         const displayed: DisplayMessage[] = [];
@@ -49,10 +95,20 @@ export function ChatPanel() {
     });
   }, []);
 
+  /**
+   * @description Auto-scrolls the message list to the bottom whenever new messages are added.
+   */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  /**
+   * @description Sends a message to the background script for processing.
+   * Appends the user message to the display, builds conversation history (last 20 messages),
+   * and handles the AI response or error. Can be called with explicit text (e.g., from
+   * suggestion chips) or uses the current input field value.
+   * @param {string} [text] - Optional explicit message text. If omitted, uses the input field value.
+   */
   const sendMessage = (text?: string) => {
     const msg = text || input.trim();
     if (!msg || loading) return;
@@ -67,7 +123,6 @@ export function ChatPanel() {
     setInput('');
     setLoading(true);
 
-    // Construire l'historique de conversation pour le contexte IA
     const conversationHistory: ChatMessage[] = messages
       .slice(-20)
       .map(m => ({ role: m.role, content: m.content }));
@@ -98,20 +153,31 @@ export function ChatPanel() {
     );
   };
 
+  /**
+   * @description Converts raw error strings from the background script into
+   * user-friendly chat error messages. Detects authentication, billing,
+   * rate-limiting, and configuration issues.
+   * @param {string} [error] - The raw error message string.
+   * @returns {string} A human-readable error message for display in the chat.
+   */
   const formatChatError = (error?: string): string => {
-    if (!error) return 'Une erreur est survenue. Reessayez.';
+    if (!error) return 'An error occurred. Please try again.';
     const lower = error.toLowerCase();
     if (lower.includes('401') || lower.includes('authentication'))
-      return 'Cle API invalide. Configurez-la dans la popup de l\'extension.';
+      return 'Invalid API key. Configure it in the extension popup.';
     if (lower.includes('402') || lower.includes('credit') || lower.includes('balance'))
-      return 'Credits insuffisants. Rechargez votre compte ou changez de provider.';
+      return 'Insufficient credits. Top up your account or switch providers.';
     if (lower.includes('429') || lower.includes('rate'))
-      return 'Trop de requetes. Attendez quelques secondes.';
-    if (lower.includes('aucun provider'))
-      return 'Aucun provider configure. Ouvrez la popup pour ajouter une cle API.';
-    return 'Erreur de connexion. Verifiez votre configuration.';
+      return 'Too many requests. Please wait a few seconds.';
+    if (lower.includes('no provider configured') || lower.includes('aucun provider'))
+      return 'No provider configured. Open the popup to add an API key.';
+    return 'Connection error. Please check your configuration.';
   };
 
+  /**
+   * @description Clears all persisted chat history via the background script
+   * and resets the local message list to empty.
+   */
   const clearHistory = () => {
     chrome.runtime.sendMessage({ type: 'CLEAR_CHAT_HISTORY' }, (res) => {
       if (res?.success) setMessages([]);
@@ -119,16 +185,16 @@ export function ChatPanel() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white" role="main" aria-label="Chat IA">
+    <div className="flex flex-col h-screen bg-white" role="main" aria-label="AI Chat">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-blue-600">
         <h1 className="text-white font-bold text-sm">Tab Manager Pro - Chat</h1>
         <button
           onClick={clearHistory}
           className="text-blue-100 hover:text-white text-xs transition-colors"
-          title="Effacer l'historique"
+          title="Clear history"
         >
-          Effacer
+          Clear
         </button>
       </div>
 
@@ -136,7 +202,7 @@ export function ChatPanel() {
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3" role="log" aria-live="polite" aria-label="Messages">
         {messages.length === 0 && (
           <div className="text-center py-8">
-            <p className="text-gray-400 text-sm mb-4">Commencez par une commande ou une question</p>
+            <p className="text-gray-400 text-sm mb-4">Start with a command or a question</p>
             <div className="flex flex-wrap gap-1.5 justify-center">
               {SUGGESTIONS.map(s => (
                 <button
@@ -167,7 +233,7 @@ export function ChatPanel() {
                 <div className={`text-xs mb-1 font-semibold ${
                   msg.commandResult.success ? 'text-green-600' : 'text-red-500'
                 }`}>
-                  {msg.commandResult.success ? 'Commande executee' : 'Echec'}
+                  {msg.commandResult.success ? 'Command executed' : 'Failed'}
                 </div>
               )}
               <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -199,14 +265,14 @@ export function ChatPanel() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder="Ex: Ferme les doublons, Groupe mes onglets..."
+            placeholder="e.g. Close duplicates, Group my tabs..."
             disabled={loading}
-            aria-label="Message a envoyer"
+            aria-label="Message to send"
           />
           <button
             onClick={() => sendMessage()}
             disabled={loading || !input.trim()}
-            aria-label="Envoyer le message"
+            aria-label="Send message"
             className="bg-blue-500 hover:bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center disabled:bg-gray-300 transition-colors flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">

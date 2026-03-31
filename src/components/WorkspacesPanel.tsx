@@ -1,6 +1,41 @@
+/**
+ * @module components/WorkspacesPanel
+ * @description Workspaces management panel component for Tab Manager Pro.
+ * Allows users to create named, color-coded workspaces from their currently open tabs,
+ * reopen workspaces to restore a set of URLs, update workspaces with new tabs,
+ * and delete workspaces they no longer need.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Workspace, WORKSPACE_COLORS } from '../utils/storage';
 
+/**
+ * @description Workspaces panel component that provides a UI for creating, listing,
+ * opening, updating, and deleting workspaces.
+ *
+ * A workspace is a named, color-coded collection of URLs captured from the user's
+ * currently open tabs. Workspaces can be reopened later to restore those URLs.
+ *
+ * **State variables:**
+ * - `workspaces` - Array of saved {@link Workspace} objects loaded from storage.
+ * - `wsName` - Current value of the workspace name input field.
+ * - `wsColor` - Currently selected color for the new workspace.
+ * - `loading` - Whether an async operation (create/open) is in progress.
+ * - `message` - Feedback message displayed to the user (auto-clears after 3 seconds).
+ *
+ * **Key handlers:**
+ * - `loadWorkspaces` - Fetches the list of saved workspaces from the background script.
+ * - `createWorkspace` - Creates a new workspace from the current tabs.
+ * - `openWorkspace` - Opens all URLs in a saved workspace.
+ * - `updateWorkspace` - Updates a workspace's URLs with the currently open tabs.
+ * - `deleteWorkspace` - Removes a workspace from storage.
+ *
+ * @returns {React.JSX.Element} The rendered workspaces panel UI.
+ *
+ * @example
+ * // Used within the popup App component:
+ * <WorkspacesPanel />
+ */
 export function WorkspacesPanel() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [wsName, setWsName] = useState('');
@@ -8,14 +43,24 @@ export function WorkspacesPanel() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
+  /**
+   * @description Fetches the list of saved workspaces from the background script
+   * via the LIST_WORKSPACES message type and updates local state.
+   */
   const loadWorkspaces = () => {
     chrome.runtime.sendMessage({ type: 'LIST_WORKSPACES' }, (res) => {
       if (res?.success) setWorkspaces(res.workspaces);
     });
   };
 
+  /** @description Loads workspaces on component mount. */
   useEffect(() => { loadWorkspaces(); }, []);
 
+  /**
+   * @description Creates a new workspace from the currently open tabs.
+   * Sends a CREATE_WORKSPACE message to the background script with the name and color.
+   * On success, clears the input, shows a confirmation message, and refreshes the list.
+   */
   const createWorkspace = () => {
     if (!wsName.trim()) return;
     setLoading(true);
@@ -25,47 +70,71 @@ export function WorkspacesPanel() {
         setLoading(false);
         if (res?.success) {
           setWsName('');
-          showMessage(`Workspace "${res.workspace.name}" cree (${res.workspace.urls.length} URLs)`);
+          showMessage(`Workspace "${res.workspace.name}" created (${res.workspace.urls.length} URLs)`);
           loadWorkspaces();
         } else {
-          showMessage('Erreur : ' + (res?.error || 'Inconnue'));
+          showMessage('Error: ' + (res?.error || 'Unknown'));
         }
       }
     );
   };
 
+  /**
+   * @description Opens all URLs from a saved workspace in the browser.
+   * Sends an OPEN_WORKSPACE message to the background script.
+   * @param {string} id - The unique identifier of the workspace to open.
+   */
   const openWorkspace = (id: string) => {
     setLoading(true);
     chrome.runtime.sendMessage({ type: 'OPEN_WORKSPACE', workspaceId: id }, (res) => {
       setLoading(false);
       if (res?.success) {
-        showMessage('Workspace ouvert !');
+        showMessage('Workspace opened!');
       } else {
-        showMessage('Erreur : ' + (res?.error || 'Inconnue'));
+        showMessage('Error: ' + (res?.error || 'Unknown'));
       }
     });
   };
 
+  /**
+   * @description Updates an existing workspace's URLs with the currently open tabs.
+   * Sends an UPDATE_WORKSPACE message to the background script.
+   * @param {string} id - The unique identifier of the workspace to update.
+   */
   const updateWorkspace = (id: string) => {
     chrome.runtime.sendMessage({ type: 'UPDATE_WORKSPACE', workspaceId: id }, (res) => {
       if (res?.success) {
-        showMessage('Workspace mis a jour !');
+        showMessage('Workspace updated!');
         loadWorkspaces();
       }
     });
   };
 
+  /**
+   * @description Deletes a workspace from storage and refreshes the workspace list.
+   * Sends a DELETE_WORKSPACE message to the background script.
+   * @param {string} id - The unique identifier of the workspace to delete.
+   */
   const deleteWorkspace = (id: string) => {
     chrome.runtime.sendMessage({ type: 'DELETE_WORKSPACE', workspaceId: id }, (res) => {
       if (res?.success) loadWorkspaces();
     });
   };
 
+  /**
+   * @description Displays a temporary feedback message that auto-clears after 3 seconds.
+   * @param {string} msg - The message to display.
+   */
   const showMessage = (msg: string) => {
     setMessage(msg);
     setTimeout(() => setMessage(''), 3000);
   };
 
+  /**
+   * @description Maps a workspace color name to its corresponding Tailwind CSS background class.
+   * @param {string} color - The color name (e.g., "blue", "red", "green").
+   * @returns {string} The Tailwind CSS class for the color dot (e.g., "bg-blue-500").
+   */
   const colorDot = (color: string) => {
     const colorMap: Record<string, string> = {
       blue: 'bg-blue-500', red: 'bg-red-500', green: 'bg-green-500',
@@ -77,7 +146,7 @@ export function WorkspacesPanel() {
 
   return (
     <div>
-      {/* Creer */}
+      {/* Create */}
       <div className="mb-3">
         <div className="flex gap-1 mb-1.5">
           <input
@@ -85,7 +154,7 @@ export function WorkspacesPanel() {
             className="flex-1 border p-1.5 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={wsName}
             onChange={(e) => setWsName(e.target.value)}
-            placeholder="Nom du workspace..."
+            placeholder="Workspace name..."
             onKeyDown={(e) => e.key === 'Enter' && createWorkspace()}
           />
           <button
@@ -93,7 +162,7 @@ export function WorkspacesPanel() {
             disabled={loading || !wsName.trim()}
             className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-3 py-1.5 rounded disabled:bg-gray-300 transition-colors"
           >
-            Creer
+            Create
           </button>
         </div>
         <div className="flex gap-1 flex-wrap">
@@ -110,12 +179,12 @@ export function WorkspacesPanel() {
         </div>
       </div>
 
-      {/* Liste */}
+      {/* List */}
       {workspaces.length === 0 ? (
         <div className="text-center py-6">
           <div className="text-3xl mb-2">&#x1F4C1;</div>
-          <p className="text-xs text-gray-400">Aucun workspace</p>
-          <p className="text-xs text-gray-300 mt-1">Creez un espace de travail avec vos onglets actuels</p>
+          <p className="text-xs text-gray-400">No workspaces</p>
+          <p className="text-xs text-gray-300 mt-1">Create a workspace from your current tabs</p>
         </div>
       ) : (
         <div className="space-y-1.5 max-h-60 overflow-y-auto">
@@ -132,19 +201,19 @@ export function WorkspacesPanel() {
                   disabled={loading}
                   className="text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50"
                 >
-                  Ouvrir
+                  Open
                 </button>
                 <button
                   onClick={() => updateWorkspace(w.id)}
                   className="text-gray-500 hover:text-gray-700"
                 >
-                  MAJ
+                  Update
                 </button>
                 <button
                   onClick={() => deleteWorkspace(w.id)}
                   className="text-red-400 hover:text-red-600"
                 >
-                  Suppr.
+                  Delete
                 </button>
               </div>
             </div>
@@ -153,7 +222,7 @@ export function WorkspacesPanel() {
       )}
 
       {message && (
-        <p className={`mt-2 text-xs text-center font-medium ${message.includes('Erreur') ? 'text-red-500' : 'text-green-600'}`}>
+        <p className={`mt-2 text-xs text-center font-medium ${message.includes('Error') ? 'text-red-500' : 'text-green-600'}`}>
           {message}
         </p>
       )}

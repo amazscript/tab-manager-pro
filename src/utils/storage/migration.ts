@@ -1,14 +1,31 @@
+/**
+ * @module storage/migration
+ * @description Handles data schema migrations for Tab Manager Pro's Chrome local storage.
+ * When the storage schema evolves, migration functions are registered here by version number.
+ * On extension startup, {@link migrateIfNeeded} is called to bring stored data up to date.
+ */
+
 import { CURRENT_SCHEMA_VERSION } from './types';
 
+/**
+ * @description A function that transforms stored data from one schema version to the next.
+ * @callback MigrationFn
+ * @param {Record<string, any>} data - The current stored data object.
+ * @returns {Record<string, any>} The transformed data object with the new schema applied.
+ */
 type MigrationFn = (data: Record<string, any>) => Record<string, any>;
 
 /**
- * Migrations indexees par version cible.
- * migrate[1] transforme les donnees de la version 0 (ou sans version) vers la version 1.
+ * @description Registry of migration functions indexed by their target version number.
+ * Each migration transforms data from `version - 1` to `version`.
+ *
+ * @example
+ * // migrations[1] transforms data from version 0 (or no version) to version 1.
+ * // migrations[2] would transform data from version 1 to version 2, etc.
  */
 const migrations: Record<number, MigrationFn> = {
   1: (data) => {
-    // Migration initiale : ajouter les champs sessions et workspaces s'ils n'existent pas
+    // Initial migration: add sessions and workspaces fields if missing
     return {
       ...data,
       schemaVersion: 1,
@@ -19,8 +36,18 @@ const migrations: Record<number, MigrationFn> = {
 };
 
 /**
- * Applique toutes les migrations necessaires pour amener les donnees a la version courante.
- * Retourne les donnees migrees et un booleen indiquant si une migration a eu lieu.
+ * @description Checks the current schema version in Chrome local storage and applies
+ * all necessary migrations sequentially to bring the data up to {@link CURRENT_SCHEMA_VERSION}.
+ * If the data is already at the current version, no changes are made.
+ *
+ * @returns {Promise<boolean>} `true` if one or more migrations were applied, `false` if already up to date.
+ *
+ * @example
+ * // Typically called during extension initialization
+ * const didMigrate = await migrateIfNeeded();
+ * if (didMigrate) {
+ *   console.log('Storage was migrated to the latest schema version.');
+ * }
  */
 export async function migrateIfNeeded(): Promise<boolean> {
   const data = await chrome.storage.local.get(null);

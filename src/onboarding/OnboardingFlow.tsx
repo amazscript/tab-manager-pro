@@ -1,9 +1,50 @@
+/**
+ * @module onboarding/OnboardingFlow
+ * @description Onboarding wizard component for Tab Manager Pro.
+ * Guides new users through a multi-step setup flow: welcome screen, AI provider
+ * selection, API key configuration, feature overview, and a completion screen.
+ * Opens automatically on first install of the extension.
+ */
+
 import React, { useState } from 'react';
 import { ProviderType, PROVIDER_LABELS, PROVIDER_PLACEHOLDERS } from '../utils/providers';
 
-const STEPS = ['Bienvenue', 'Provider', 'Configuration', 'Decouverte', 'Pret !'];
+/** @description Labels for each step in the onboarding wizard progress bar. */
+const STEPS = ['Welcome', 'Provider', 'Setup', 'Features', 'Ready!'];
+
+/** @description List of AI provider types available for selection during onboarding. */
 const PROVIDERS: ProviderType[] = ['anthropic', 'openai', 'gemini', 'mistral', 'ollama'];
 
+/**
+ * @description Multi-step onboarding wizard component.
+ *
+ * Walks the user through initial setup of Tab Manager Pro in five steps:
+ * 1. **Welcome** - Introduction to the extension and its features.
+ * 2. **Provider** - Selection of the preferred AI provider.
+ * 3. **Setup** - Configuration of the API key or Ollama server URL.
+ * 4. **Features** - Overview of key features (grouping, sessions, workspaces, chat).
+ * 5. **Ready** - Confirmation screen with a button to close and start using the extension.
+ *
+ * **State variables:**
+ * - `step` - Current step index (0-4) in the wizard.
+ * - `provider` - The selected AI provider type.
+ * - `apiKey` - The API key entered by the user.
+ * - `ollamaUrl` - The Ollama server URL entered by the user.
+ * - `saving` - Whether the configuration is currently being saved to storage.
+ * - `saved` - Whether the configuration has been successfully saved.
+ *
+ * **Key handlers:**
+ * - `next` / `prev` - Navigate between wizard steps.
+ * - `saveAndNext` - Persists the provider configuration and advances to the next step.
+ * - `finish` - Marks onboarding as complete and closes the tab.
+ * - `skipOnboarding` - Skips the entire wizard and closes the tab.
+ *
+ * @returns {React.JSX.Element} The rendered onboarding wizard UI.
+ *
+ * @example
+ * // Used as the root component in the onboarding entry point:
+ * <OnboardingFlow />
+ */
 export function OnboardingFlow() {
   const [step, setStep] = useState(0);
   const [provider, setProvider] = useState<ProviderType>('anthropic');
@@ -12,9 +53,21 @@ export function OnboardingFlow() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  /**
+   * @description Advances to the next wizard step, clamped to the maximum step index.
+   */
   const next = () => setStep(s => Math.min(s + 1, STEPS.length - 1));
+
+  /**
+   * @description Returns to the previous wizard step, clamped to step 0.
+   */
   const prev = () => setStep(s => Math.max(s - 1, 0));
 
+  /**
+   * @description Saves the selected provider configuration (API key or Ollama URL)
+   * to chrome.storage.local, marks onboarding as complete, and advances to the next step.
+   * Sets the `saved` flag on success so the final step can display a confirmation.
+   */
   const saveAndNext = () => {
     setSaving(true);
     const config = provider === 'ollama'
@@ -32,12 +85,18 @@ export function OnboardingFlow() {
     });
   };
 
+  /**
+   * @description Marks onboarding as complete in storage and closes the onboarding tab.
+   */
   const finish = () => {
     chrome.storage.local.set({ onboardingComplete: true }, () => {
       window.close();
     });
   };
 
+  /**
+   * @description Skips the entire onboarding flow, marks it as complete, and closes the tab.
+   */
   const skipOnboarding = () => {
     chrome.storage.local.set({ onboardingComplete: true }, () => {
       window.close();
@@ -66,52 +125,52 @@ export function OnboardingFlow() {
         </div>
 
         <div className="p-8">
-          {/* Step 0: Bienvenue */}
+          {/* Step 0: Welcome */}
           {step === 0 && (
             <div className="text-center">
               <div className="text-5xl mb-4">
                 <span role="img" aria-label="tabs">&#x1F4CB;</span>
               </div>
               <h2 className="text-2xl font-bold text-gray-800 mb-3">
-                Bienvenue sur Tab Manager Pro
+                Welcome to Tab Manager Pro
               </h2>
               <p className="text-gray-600 mb-6 leading-relaxed">
-                L'extension qui utilise l'intelligence artificielle pour organiser
-                automatiquement vos onglets Chrome en groupes thematiques.
+                The extension that uses artificial intelligence to automatically
+                organize your Chrome tabs into thematic groups.
               </p>
               <div className="space-y-2 text-left text-sm text-gray-600 mb-8">
                 <div className="flex items-start gap-2">
                   <span className="text-blue-500 mt-0.5">&#x2022;</span>
-                  <span>Groupement intelligent par IA (Claude, GPT, Gemini, Mistral, Ollama)</span>
+                  <span>Smart AI grouping (Claude, GPT, Gemini, Mistral, Ollama)</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="text-blue-500 mt-0.5">&#x2022;</span>
-                  <span>Sauvegarde et restauration de sessions</span>
+                  <span>Session save and restore</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="text-blue-500 mt-0.5">&#x2022;</span>
-                  <span>Workspaces thematiques pour vos projets</span>
+                  <span>Thematic workspaces for your projects</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="text-blue-500 mt-0.5">&#x2022;</span>
-                  <span>Chat IA pour controler vos onglets en langage naturel</span>
+                  <span>AI chat to control your tabs with natural language</span>
                 </div>
               </div>
               <button onClick={next} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition-colors">
-                Commencer la configuration
+                Start setup
               </button>
               <button onClick={skipOnboarding} className="block mx-auto mt-3 text-xs text-gray-400 hover:text-gray-600">
-                Passer l'introduction
+                Skip introduction
               </button>
             </div>
           )}
 
-          {/* Step 1: Choix du provider */}
+          {/* Step 1: Choose provider */}
           {step === 1 && (
             <div>
-              <h2 className="text-xl font-bold text-gray-800 mb-2">Choisissez votre provider IA</h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Choose your AI provider</h2>
               <p className="text-sm text-gray-500 mb-5">
-                Vous pourrez en ajouter d'autres plus tard dans les parametres.
+                You can add more providers later in the settings.
               </p>
               <div className="space-y-2">
                 {PROVIDERS.map(p => (
@@ -126,39 +185,39 @@ export function OnboardingFlow() {
                   >
                     <div className="font-semibold text-sm text-gray-800">{PROVIDER_LABELS[p]}</div>
                     <div className="text-xs text-gray-500 mt-0.5">
-                      {p === 'anthropic' && 'Modele Claude - Excellent pour l\'analyse semantique'}
-                      {p === 'openai' && 'GPT-4o-mini - Rapide et economique'}
-                      {p === 'gemini' && 'Gemini 2.0 Flash - Integration Google'}
-                      {p === 'mistral' && 'Mistral Small - Modele europeen performant'}
-                      {p === 'ollama' && 'Mode local - Aucune donnee envoyee en ligne'}
+                      {p === 'anthropic' && 'Claude model — Excellent for semantic analysis'}
+                      {p === 'openai' && 'GPT-4o-mini — Fast and affordable'}
+                      {p === 'gemini' && 'Gemini 2.0 Flash — Google integration'}
+                      {p === 'mistral' && 'Mistral Small — High-performance European model'}
+                      {p === 'ollama' && 'Local mode — No data sent online'}
                     </div>
                   </button>
                 ))}
               </div>
               <div className="flex justify-between mt-6">
-                <button onClick={prev} className="text-gray-500 hover:text-gray-700 text-sm">Retour</button>
+                <button onClick={prev} className="text-gray-500 hover:text-gray-700 text-sm">Back</button>
                 <button onClick={next} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">
-                  Suivant
+                  Next
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 2: Configuration API key */}
+          {/* Step 2: API key setup */}
           {step === 2 && (
             <div>
               <h2 className="text-xl font-bold text-gray-800 mb-2">
-                Configurez {PROVIDER_LABELS[provider]}
+                Configure {PROVIDER_LABELS[provider]}
               </h2>
               <p className="text-sm text-gray-500 mb-5">
                 {provider === 'ollama'
-                  ? 'Verifiez que Ollama est lance sur votre machine.'
-                  : 'Entrez votre cle API. Elle reste stockee localement dans votre navigateur.'}
+                  ? 'Make sure Ollama is running on your machine.'
+                  : 'Enter your API key. It is stored locally in your browser only.'}
               </p>
 
               {provider === 'ollama' ? (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">URL du serveur Ollama</label>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Ollama Server URL</label>
                   <input
                     type="text"
                     className="w-full border-2 p-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -169,7 +228,7 @@ export function OnboardingFlow() {
                 </div>
               ) : (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Cle API</label>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">API Key</label>
                   <input
                     type="password"
                     className="w-full border-2 p-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -178,38 +237,38 @@ export function OnboardingFlow() {
                     placeholder={PROVIDER_PLACEHOLDERS[provider]}
                   />
                   <p className="text-xs text-gray-400 mt-2">
-                    Votre cle est stockee uniquement en local dans chrome.storage.
+                    Your key is stored locally in chrome.storage only.
                   </p>
                 </div>
               )}
 
               <div className="flex justify-between mt-6">
-                <button onClick={prev} className="text-gray-500 hover:text-gray-700 text-sm">Retour</button>
+                <button onClick={prev} className="text-gray-500 hover:text-gray-700 text-sm">Back</button>
                 <button
                   onClick={saveAndNext}
                   disabled={saving || (provider !== 'ollama' && !apiKey.trim())}
                   className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-colors disabled:bg-gray-300"
                 >
-                  {saving ? 'Sauvegarde...' : 'Sauvegarder et continuer'}
+                  {saving ? 'Saving...' : 'Save and continue'}
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 3: Decouverte */}
+          {/* Step 3: Features */}
           {step === 3 && (
             <div>
-              <h2 className="text-xl font-bold text-gray-800 mb-2">Decouvrez les fonctionnalites</h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Discover the features</h2>
               <p className="text-sm text-gray-500 mb-5">
-                Voici comment utiliser Tab Manager Pro au quotidien :
+                Here's how to use Tab Manager Pro every day:
               </p>
 
               <div className="space-y-4">
                 <div className="flex gap-3 items-start p-3 bg-blue-50 rounded-lg">
                   <span className="text-2xl">&#x1F3AF;</span>
                   <div>
-                    <div className="font-semibold text-sm text-gray-800">Groupement IA</div>
-                    <div className="text-xs text-gray-600">Cliquez sur "Regrouper via IA" dans la popup pour organiser automatiquement vos onglets.</div>
+                    <div className="font-semibold text-sm text-gray-800">AI Grouping</div>
+                    <div className="text-xs text-gray-600">Click "Group with AI" in the popup to automatically organize your tabs.</div>
                   </div>
                 </div>
 
@@ -217,7 +276,7 @@ export function OnboardingFlow() {
                   <span className="text-2xl">&#x1F4BE;</span>
                   <div>
                     <div className="font-semibold text-sm text-gray-800">Sessions</div>
-                    <div className="text-xs text-gray-600">Sauvegardez tous vos onglets ouverts et restaurez-les plus tard en un clic.</div>
+                    <div className="text-xs text-gray-600">Save all your open tabs and restore them later with one click.</div>
                   </div>
                 </div>
 
@@ -225,48 +284,48 @@ export function OnboardingFlow() {
                   <span className="text-2xl">&#x1F4C1;</span>
                   <div>
                     <div className="font-semibold text-sm text-gray-800">Workspaces</div>
-                    <div className="text-xs text-gray-600">Creez des espaces de travail thematiques pour basculer rapidement entre vos projets.</div>
+                    <div className="text-xs text-gray-600">Create thematic workspaces to quickly switch between your projects.</div>
                   </div>
                 </div>
 
                 <div className="flex gap-3 items-start p-3 bg-yellow-50 rounded-lg">
                   <span className="text-2xl">&#x1F4AC;</span>
                   <div>
-                    <div className="font-semibold text-sm text-gray-800">Chat IA</div>
-                    <div className="text-xs text-gray-600">Ouvrez le panneau lateral pour controler vos onglets en langage naturel : "Ferme les doublons".</div>
+                    <div className="font-semibold text-sm text-gray-800">AI Chat</div>
+                    <div className="text-xs text-gray-600">Open the side panel to control your tabs with natural language: "Close duplicates".</div>
                   </div>
                 </div>
               </div>
 
               <div className="flex justify-between mt-6">
-                <button onClick={prev} className="text-gray-500 hover:text-gray-700 text-sm">Retour</button>
+                <button onClick={prev} className="text-gray-500 hover:text-gray-700 text-sm">Back</button>
                 <button onClick={next} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">
-                  Suivant
+                  Next
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 4: Pret */}
+          {/* Step 4: Ready */}
           {step === 4 && (
             <div className="text-center">
               <div className="text-5xl mb-4">
                 <span role="img" aria-label="rocket">&#x1F680;</span>
               </div>
               <h2 className="text-2xl font-bold text-gray-800 mb-3">
-                Tout est pret !
+                All set!
               </h2>
               <p className="text-gray-600 mb-2">
                 {saved
-                  ? `${PROVIDER_LABELS[provider]} est configure.`
-                  : 'Vous pouvez configurer votre provider dans la popup.'}
+                  ? `${PROVIDER_LABELS[provider]} is configured.`
+                  : 'You can configure your provider in the popup.'}
               </p>
               <p className="text-sm text-gray-500 mb-8">
-                Cliquez sur l'icone de l'extension dans votre barre d'outils pour commencer.
+                Click the extension icon in your toolbar to get started.
               </p>
 
               <button onClick={finish} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition-colors">
-                Commencer a utiliser Tab Manager Pro
+                Start using Tab Manager Pro
               </button>
             </div>
           )}

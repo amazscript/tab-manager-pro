@@ -1,10 +1,26 @@
 /**
- * Content script pour Firefox : affiche un badge visuel en haut de la page
- * pour indiquer le groupe virtuel auquel appartient l'onglet.
+ * @module virtual-group-badge
+ * @description Content script for Firefox that displays a visual badge at the top
+ * of the page to indicate the virtual group a tab belongs to. A thin colored bar
+ * is rendered across the top of the viewport, with a small label showing the group name.
+ *
+ * The badge is controlled via messages from the background script:
+ * - `UPDATE_VIRTUAL_GROUP_BADGE` with a `group` payload creates/updates the badge.
+ * - `UPDATE_VIRTUAL_GROUP_BADGE` without a `group` payload removes the badge.
  */
 
+/**
+ * @description The DOM element ID used for the badge bar element.
+ * Also used as a prefix for the label element (`${BADGE_ID}-label`).
+ * @constant {string}
+ */
 const BADGE_ID = 'tmp-virtual-group-badge';
 
+/**
+ * @description Mapping of color names to their hex color values.
+ * Used to translate group color identifiers into CSS background colors.
+ * @constant {Record<string, string>}
+ */
 const COLOR_MAP: Record<string, string> = {
   grey: '#6b7280',
   blue: '#3b82f6',
@@ -17,6 +33,28 @@ const COLOR_MAP: Record<string, string> = {
   orange: '#f97316',
 };
 
+/**
+ * @description Creates or updates the visual group badge at the top of the page.
+ * If the badge DOM elements do not exist, they are created and appended to the
+ * document root element. If they already exist, only the color and title are updated.
+ *
+ * The badge consists of two elements:
+ * 1. A thin (3px) colored bar spanning the full width of the viewport.
+ * 2. A small label positioned below the bar showing the group title.
+ *
+ * Both elements use `pointer-events: none` to avoid interfering with page interaction
+ * and `z-index: 2147483647` (max 32-bit int) to stay above all page content.
+ *
+ * @param {string} title - The group name to display in the badge label.
+ * @param {string} color - The color key (must match a key in {@link COLOR_MAP}). Falls back to grey if unrecognized.
+ * @returns {void}
+ *
+ * @example
+ * ```ts
+ * createOrUpdateBadge('Work', 'blue');
+ * // Renders a blue bar with "Work" label at the top of the page.
+ * ```
+ */
 function createOrUpdateBadge(title: string, color: string): void {
   let badge = document.getElementById(BADGE_ID);
 
@@ -66,12 +104,18 @@ function createOrUpdateBadge(title: string, color: string): void {
   }
 }
 
+/**
+ * @description Removes the badge bar and label elements from the DOM, if they exist.
+ * Safe to call even when no badge is currently displayed.
+ *
+ * @returns {void}
+ */
 function removeBadge(): void {
   document.getElementById(BADGE_ID)?.remove();
   document.getElementById(BADGE_ID + '-label')?.remove();
 }
 
-// Ecouter les messages du background
+// Listen for messages from the background
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'UPDATE_VIRTUAL_GROUP_BADGE') {
     if (message.group) {

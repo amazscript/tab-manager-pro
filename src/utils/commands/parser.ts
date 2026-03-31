@@ -1,11 +1,37 @@
+/**
+ * @module parser
+ * @description Natural language intent parser for Tab Manager Pro.
+ * Matches user input text against a set of regex patterns (supporting both
+ * French and English) to determine the intended command and extract parameters.
+ * Falls back to a generic 'chat' intent when no command pattern matches.
+ */
+
 import { ParsedIntent, IntentType } from './types';
 
+/**
+ * @description Internal interface representing a single intent pattern configuration.
+ * Each entry maps an intent type to one or more regex patterns and an optional
+ * parameter extraction function.
+ */
 interface IntentPattern {
+  /** @description The intent type this pattern detects. */
   type: IntentType;
+  /** @description Array of regex patterns that trigger this intent. */
   patterns: RegExp[];
+  /**
+   * @description Optional function to extract command parameters from the matched text.
+   * @param match - The RegExp match array from the pattern test.
+   * @param text - The original user input text.
+   * @returns A record of extracted parameter key-value pairs.
+   */
   extractParams?: (match: RegExpMatchArray, text: string) => Record<string, string | undefined>;
 }
 
+/**
+ * @description Array of all supported intent patterns, ordered by priority.
+ * Each entry defines regex patterns (French and English) and optional parameter extraction.
+ * @constant
+ */
 const intentPatterns: IntentPattern[] = [
   {
     type: 'close_duplicates',
@@ -122,6 +148,33 @@ const intentPatterns: IntentPattern[] = [
   },
 ];
 
+/**
+ * @description Parses a natural language text input and returns a structured intent
+ * with its type, extracted parameters, and the original text. Patterns are evaluated
+ * in priority order; the first match wins. If no command pattern matches, a 'chat'
+ * intent is returned as a fallback.
+ *
+ * @param {string} text - The raw user input text to parse.
+ * @returns {ParsedIntent} The parsed intent containing the recognized type, extracted parameters, and original text.
+ *
+ * @example
+ * ```ts
+ * const intent = parseIntent('close duplicates');
+ * // => { type: 'close_duplicates', params: {}, originalText: 'close duplicates' }
+ * ```
+ *
+ * @example
+ * ```ts
+ * const intent = parseIntent('save the session as "Friday work"');
+ * // => { type: 'save_session', params: { name: 'Friday work' }, originalText: '...' }
+ * ```
+ *
+ * @example
+ * ```ts
+ * const intent = parseIntent('hello there');
+ * // => { type: 'chat', params: {}, originalText: 'hello there' }
+ * ```
+ */
 export function parseIntent(text: string): ParsedIntent {
   for (const intent of intentPatterns) {
     for (const pattern of intent.patterns) {

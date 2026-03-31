@@ -1,3 +1,18 @@
+/**
+ * @module background/index
+ * @description Background service worker for the Tab Manager Pro Chrome extension.
+ * Serves as the central message hub that handles all communication between the popup,
+ * side panel, and Chrome APIs. Responsibilities include:
+ * - AI-powered tab auto-grouping and ungrouping
+ * - Session management (save, list, restore, delete)
+ * - Workspace management (create, list, open, update, delete)
+ * - Chat message processing (intent parsing, command execution, AI conversation)
+ * - Chat history management (list, clear)
+ * - Onboarding tab creation on first install
+ * - Schema migration on service worker startup
+ * - Sentry error tracking initialization
+ */
+
 import { TabData, ChatMessage } from '../utils/providers';
 import { ProviderManager, loadProviderManagerConfig } from '../utils/providers';
 import { SessionManager } from '../utils/storage';
@@ -7,15 +22,18 @@ import { parseIntent, executeCommand, ChatHistory } from '../utils/commands';
 import { groupTabs } from '../utils/browser';
 import { initSentry, captureError } from '../utils/sentry';
 
-// Initialiser Sentry
+// Initialize Sentry
 initSentry();
 
-// Migration au demarrage du service worker
+// Run migration on service worker startup
 migrateIfNeeded().then(migrated => {
-  if (migrated) console.log('[TabManagerPro] Migration du schema terminee');
+  if (migrated) console.log('[TabManagerPro] Schema migration complete');
 });
 
-// Ouvrir l'onboarding au premier install
+/**
+ * @description Listens for the extension's first install event and opens
+ * the onboarding page if the user has not completed onboarding yet.
+ */
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     chrome.storage.local.get('onboardingComplete', (data) => {
@@ -26,6 +44,11 @@ chrome.runtime.onInstalled.addListener((details) => {
   }
 });
 
+/**
+ * @description Central message listener that routes incoming messages from the popup
+ * and side panel to the appropriate handler function based on the message `type` field.
+ * Returns `true` to keep the message channel open for asynchronous responses.
+ */
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const handler = messageHandlers[message.type];
   if (handler) {
@@ -34,8 +57,34 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 });
 
+/**
+ * @description Type definition for a message handler function.
+ * @param {any} message - The incoming message object.
+ * @param {(response: any) => void} sendResponse - Callback to send a response back to the sender.
+ */
 type MessageHandler = (message: any, sendResponse: (response: any) => void) => void;
 
+/**
+ * @description Registry of all message handlers, keyed by message type.
+ * Each handler processes a specific message type and sends back a response
+ * with a `success` boolean and relevant data or error information.
+ *
+ * Supported message types:
+ * - `AUTO_GROUP_TABS` - Triggers AI-powered tab auto-grouping.
+ * - `UNGROUP_ALL_TABS` - Removes all tab groups in the current window.
+ * - `SAVE_SESSION` - Saves the current tabs as a named session.
+ * - `LIST_SESSIONS` - Returns all saved sessions.
+ * - `RESTORE_SESSION` - Restores tabs from a saved session.
+ * - `DELETE_SESSION` - Deletes a saved session.
+ * - `CREATE_WORKSPACE` - Creates a new workspace from current tabs.
+ * - `LIST_WORKSPACES` - Returns all saved workspaces.
+ * - `OPEN_WORKSPACE` - Opens all URLs in a saved workspace.
+ * - `UPDATE_WORKSPACE` - Updates a workspace with current tabs.
+ * - `DELETE_WORKSPACE` - Deletes a saved workspace.
+ * - `CHAT_MESSAGE` - Processes a chat message (command or AI conversation).
+ * - `LIST_CHAT_HISTORY` - Returns the chat history.
+ * - `CLEAR_CHAT_HISTORY` - Clears all chat history.
+ */
 const messageHandlers: Record<string, MessageHandler> = {
   AUTO_GROUP_TABS: (_msg, sendResponse) => handleAutoGrouping(sendResponse),
   UNGROUP_ALL_TABS: (_msg, sendResponse) => {
@@ -46,7 +95,7 @@ const messageHandlers: Record<string, MessageHandler> = {
 
   // Sessions
   SAVE_SESSION: (msg, sendResponse) => {
-    SessionManager.captureCurrentSession(msg.name || 'Session sans nom')
+    SessionManager.captureCurrentSession(msg.name || 'Unnamed session')
       .then(session => sendResponse({ success: true, session }))
       .catch(err => sendResponse({ success: false, error: err.message }));
   },
@@ -112,6 +161,14 @@ const messageHandlers: Record<string, MessageHandler> = {
 
 };
 
+/**
+ * @description Handles AI-powered automatic tab grouping. Queries all tabs in the current
+ * window, sends them to the configured AI provider for semantic analysis, then creates
+ * Chrome tab groups based on the AI's suggested groupings. Validates that AI-returned
+ * tab IDs match actual open tabs before grouping.
+ * @param {(response: any) => void} sendResponse - Callback to send the result back to the caller.
+ * @returns {Promise<void>}
+ */
 async function handleAutoGrouping(sendResponse: (response: any) => void) {
   try {
     const tabs = await chrome.tabs.query({ currentWindow: true });
@@ -122,19 +179,19 @@ async function handleAutoGrouping(sendResponse: (response: any) => void) {
     const config = await loadProviderManagerConfig();
     const manager = new ProviderManager(config);
     const { aiLanguage } = await chrome.storage.local.get('aiLanguage');
-    const language = (aiLanguage as string) || 'fr';
+    const language = (aiLanguage as string) || 'en';
     const groups = await manager.suggestGroups(tabData, language);
 
-    console.log('[TabManagerPro] Onglets envoyes:', tabData.map(t => ({ id: t.id, title: t.title.substring(0, 30) })));
-    console.log('[TabManagerPro] Groupes recus:', JSON.stringify(groups));
+    console.log('[TabManagerPro] Tabs sent:', tabData.map(t => ({ id: t.id, title: t.title.substring(0, 30) })));
+    console.log('[TabManagerPro] Groups received:', JSON.stringify(groups));
 
-    // Verifier que les tab IDs retournes par l'IA correspondent a de vrais onglets
+    // Verify that tab IDs returned by AI match actual tabs
     const validTabIds = new Set(tabData.map(t => t.id));
     let groupedCount = 0;
 
     for (const group of groups) {
       const validTabs = group.tabs.filter(id => validTabIds.has(id));
-      console.log(`[TabManagerPro] Groupe "${group.groupName}": ${group.tabs.length} tabs IA -> ${validTabs.length} valides`);
+      console.log(`[TabManagerPro] Group "${group.groupName}": ${group.tabs.length} AI tabs -> ${validTabs.length} valid`);
 
       if (validTabs.length > 0) {
         try {
@@ -145,7 +202,7 @@ async function handleAutoGrouping(sendResponse: (response: any) => void) {
           });
           groupedCount++;
         } catch (e: any) {
-          console.error(`[TabManagerPro] Erreur groupement "${group.groupName}":`, e.message);
+          console.error(`[TabManagerPro] Grouping error "${group.groupName}":`, e.message);
         }
       }
     }
@@ -157,16 +214,20 @@ async function handleAutoGrouping(sendResponse: (response: any) => void) {
   }
 }
 
+/**
+ * @description Removes all tab groups in the current window by ungrouping every grouped tab.
+ * @returns {Promise<number>} The number of unique tab groups that were removed.
+ */
 async function handleUngroupAll(): Promise<number> {
   const tabs = await chrome.tabs.query({ currentWindow: true });
   const groupedTabs = tabs.filter(t => t.groupId && t.groupId !== -1);
 
   if (groupedTabs.length === 0) return 0;
 
-  // Collecter les group IDs uniques
+  // Collect unique group IDs
   const groupIds = new Set(groupedTabs.map(t => t.groupId));
 
-  // Degrouper tous les onglets
+  // Ungroup all tabs
   const tabIds = groupedTabs.map(t => t.id!).filter(Boolean);
   if (tabIds.length > 0) {
     chrome.tabs.ungroup(tabIds as [number, ...number[]]);
@@ -175,11 +236,27 @@ async function handleUngroupAll(): Promise<number> {
   return groupIds.size;
 }
 
-const CHAT_SYSTEM_PROMPT = `Tu es l'assistant de Tab Manager Pro, une extension Chrome de gestion d'onglets.
-Tu peux aider l'utilisateur a organiser ses onglets, gerer ses sessions et workspaces.
-Reponds de maniere concise et utile en francais.
-Si l'utilisateur demande une action sur ses onglets, explique ce que tu as fait.`;
+/**
+ * @description System prompt used for AI chat conversations. Instructs the AI to act
+ * as a helpful tab management assistant that can organize tabs, manage sessions,
+ * and manage workspaces.
+ */
+const CHAT_SYSTEM_PROMPT = `You are the assistant for Tab Manager Pro, a Chrome extension for tab management.
+You can help the user organize their tabs, manage sessions and workspaces.
+Reply concisely and helpfully in English.
+If the user requests an action on their tabs, explain what you did.`;
 
+/**
+ * @description Processes an incoming chat message from the side panel. First attempts
+ * to parse the message as a tab management command (e.g., "close duplicates", "sort tabs").
+ * If a command is detected, it is executed directly. Otherwise, the message is sent to
+ * the configured AI provider for a conversational response, with the user's current tabs
+ * included as context. The result is saved to chat history.
+ * @param {string} text - The user's chat message text.
+ * @param {ChatMessage[]} conversationHistory - Previous messages in the conversation for context.
+ * @returns {Promise<{ reply: string; commandResult?: { success: boolean; message: string } }>}
+ *   The AI reply text and optional command execution result.
+ */
 async function handleChatMessage(
   text: string,
   conversationHistory: ChatMessage[]
@@ -190,18 +267,18 @@ async function handleChatMessage(
   let reply: string;
 
   if (intent.type !== 'chat') {
-    // Executer la commande
+    // Execute the command
     commandResult = await executeCommand(intent);
     reply = commandResult.message;
   } else {
-    // Mode conversation libre avec l'IA
+    // Free conversation mode with AI
     const config = await loadProviderManagerConfig();
     const manager = new ProviderManager(config);
 
-    // Ajouter le contexte des onglets actuels
+    // Add current tabs context
     const tabs = await chrome.tabs.query({ currentWindow: true });
     const tabContext = tabs.map(t => `- ${t.title} (${t.url})`).join('\n');
-    const systemWithContext = `${CHAT_SYSTEM_PROMPT}\n\nOnglets actuels de l'utilisateur :\n${tabContext}`;
+    const systemWithContext = `${CHAT_SYSTEM_PROMPT}\n\nUser's current tabs:\n${tabContext}`;
 
     const messages: ChatMessage[] = [
       ...conversationHistory,
@@ -211,7 +288,7 @@ async function handleChatMessage(
     reply = await manager.chat(messages, systemWithContext);
   }
 
-  // Sauvegarder dans l'historique
+  // Save to history
   await ChatHistory.add({
     userMessage: text,
     assistantMessage: reply,

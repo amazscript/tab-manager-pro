@@ -1,3 +1,10 @@
+/**
+ * @module storage
+ * @description Public barrel file for the storage subsystem of Tab Manager Pro.
+ * Re-exports all types, constants, and manager classes related to session and
+ * workspace persistence, as well as the storage migration utility.
+ */
+
 export type {
   Session,
   SavedTab,
