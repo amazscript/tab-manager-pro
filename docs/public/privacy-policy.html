@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tab Manager Pro - Privacy Policy</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 720px; margin: 0 auto; padding: 2rem; color: #333; line-height: 1.7; }
+    h1 { color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 0.5rem; }
+    h2 { color: #1e40af; margin-top: 2rem; }
+    ul { padding-left: 1.5rem; }
+    li { margin-bottom: 0.5rem; }
+    .date { color: #6b7280; font-size: 0.9rem; }
+    a { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <h1>Tab Manager Pro - Privacy Policy</h1>
+  <p class="date">Last updated: March 2026</p>
+
+  <h2>Overview</h2>
+  <p>Tab Manager Pro is a browser extension that uses artificial intelligence to organize your browser tabs. We are committed to protecting your privacy and being transparent about the data we handle.</p>
+
+  <h2>Data Collection</h2>
+  <p>Tab Manager Pro does <strong>not</strong> collect, store, or transmit any personal data to our servers. All extension data is stored locally in your browser using <code>chrome.storage.local</code>.</p>
+
+  <h2>Data Stored Locally</h2>
+  <ul>
+    <li><strong>API Keys:</strong> Your AI provider API keys (Anthropic, OpenAI, Gemini, Mistral) are stored locally in your browser and are never sent to our servers.</li>
+    <li><strong>Sessions & Workspaces:</strong> Saved tab sessions and workspace configurations are stored locally.</li>
+    <li><strong>Chat History:</strong> Conversation history with the AI assistant is stored locally.</li>
+    <li><strong>Preferences:</strong> Your provider configuration and extension preferences are stored locally.</li>
+  </ul>
+
+  <h2>Third-Party Services</h2>
+  <p>When you use AI features, your tab information (titles and URLs) is sent to your chosen AI provider:</p>
+  <ul>
+    <li><strong>Anthropic (Claude):</strong> Subject to <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener">Anthropic's Privacy Policy</a></li>
+    <li><strong>OpenAI (GPT):</strong> Subject to <a href="https://openai.com/privacy" target="_blank" rel="noopener">OpenAI's Privacy Policy</a></li>
+    <li><strong>Google (Gemini):</strong> Subject to <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a></li>
+    <li><strong>Mistral AI:</strong> Subject to <a href="https://mistral.ai/privacy" target="_blank" rel="noopener">Mistral's Privacy Policy</a></li>
+    <li><strong>Ollama (Local):</strong> When using Ollama, all processing happens on your local machine. No data is sent to external servers.</li>
+  </ul>
+
+  <p>For error monitoring, anonymous error reports may be sent to <strong>Sentry</strong> (when configured), subject to <a href="https://sentry.io/privacy/" target="_blank" rel="noopener">Sentry's Privacy Policy</a>. No personal data or API keys are included in error reports.</p>
+
+  <h2>Permissions</h2>
+  <ul>
+    <li><strong>tabs:</strong> Required to read tab titles and URLs for AI grouping and session management.</li>
+    <li><strong>storage:</strong> Required to persist your settings, sessions, and workspaces locally.</li>
+    <li><strong>tabGroups:</strong> Required to create and manage Chrome tab groups.</li>
+    <li><strong>sidePanel:</strong> Required for the AI chat side panel.</li>
+  </ul>
+
+  <h2>Data Sharing</h2>
+  <p>We do not sell, trade, or otherwise transfer your data to third parties. The only data transmitted externally is:</p>
+  <ul>
+    <li>Tab titles and URLs sent to your chosen AI provider for analysis (only when you explicitly trigger an AI action).</li>
+  </ul>
+
+  <h2>Data Deletion</h2>
+  <p>All locally stored data can be deleted by:</p>
+  <ul>
+    <li>Uninstalling the extension (removes all stored data).</li>
+    <li>Clearing your browser's extension data.</li>
+    <li>Using the "Clear" button in the chat panel to delete conversation history.</li>
+  </ul>
+
+  <h2>Changes to This Policy</h2>
+  <p>We may update this privacy policy from time to time. Changes will be reflected in the "Last updated" date above.</p>
+
+  <h2>Contact</h2>
+  <p>If you have questions about this privacy policy, please open an issue on our GitHub repository.</p>
+</body>
+</html>
