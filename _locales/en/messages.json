@@ -1,0 +1,131 @@
+{
+  "extName": {
+    "message": "Tab Manager Pro"
+  },
+  "extDescription": {
+    "message": "Organize your tabs with AI. Auto-group, sessions, workspaces, and natural language chat commands."
+  },
+  "tabIA": {
+    "message": "AI"
+  },
+  "tabSessions": {
+    "message": "Sessions"
+  },
+  "tabWorkspaces": {
+    "message": "Workspaces"
+  },
+  "provider": {
+    "message": "Provider"
+  },
+  "apiKey": {
+    "message": "API Key"
+  },
+  "serverUrl": {
+    "message": "Server URL"
+  },
+  "save": {
+    "message": "Save"
+  },
+  "fallback": {
+    "message": "Fallback"
+  },
+  "none": {
+    "message": "None"
+  },
+  "groupViaAI": {
+    "message": "Group via AI"
+  },
+  "analyzing": {
+    "message": "Analyzing..."
+  },
+  "organizationDone": {
+    "message": "Organization complete!"
+  },
+  "error": {
+    "message": "Error"
+  },
+  "configSaved": {
+    "message": "Configuration saved!"
+  },
+  "sessionName": {
+    "message": "Session name..."
+  },
+  "saveSession": {
+    "message": "Save"
+  },
+  "noSessions": {
+    "message": "No saved sessions"
+  },
+  "noSessionsHint": {
+    "message": "Save your tabs to find them later"
+  },
+  "open": {
+    "message": "Open"
+  },
+  "delete": {
+    "message": "Delete"
+  },
+  "sessionSaved": {
+    "message": "Session saved!"
+  },
+  "sessionRestored": {
+    "message": "Session restored!"
+  },
+  "workspaceName": {
+    "message": "Workspace name..."
+  },
+  "create": {
+    "message": "Create"
+  },
+  "noWorkspaces": {
+    "message": "No workspaces"
+  },
+  "noWorkspacesHint": {
+    "message": "Create a workspace with your current tabs"
+  },
+  "update": {
+    "message": "Update"
+  },
+  "close": {
+    "message": "Close"
+  },
+  "windows": {
+    "message": "win."
+  },
+  "tabs": {
+    "message": "tabs"
+  },
+  "chatTitle": {
+    "message": "Tab Manager Pro - Chat"
+  },
+  "clearHistory": {
+    "message": "Clear"
+  },
+  "chatPlaceholder": {
+    "message": "E.g.: Close duplicates, Group my tabs..."
+  },
+  "chatEmpty": {
+    "message": "Start with a command or a question"
+  },
+  "commandExecuted": {
+    "message": "Command executed"
+  },
+  "failed": {
+    "message": "Failed"
+  },
+  "cmdCloseDuplicates": {
+    "message": "Close duplicates"
+  },
+  "cmdGroupTabs": {
+    "message": "Group tabs"
+  },
+  "cmdSortTabs": {
+    "message": "Sort tabs"
+  },
+  "cmdSaveSession": {
+    "message": "Save session"
+  },
+  "cmdCloseInactive": {
+    "message": "Close inactive tabs"
+  }
+}
