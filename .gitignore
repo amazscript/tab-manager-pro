@@ -1,22 +1,17 @@
-node_modules/
-dist/
-*.zip
-*.docx
-.DS_Store
+# Ignore everything
+*
+
+# Allow only documentation
+!.gitignore
+!README.md
+!privacy-policy.html
+!LICENSE*
+!.github/
+!.github/**
+!docs/
+!docs/**
+
+# Ignore docs build artifacts
 docs/.vitepress/dist
 docs/.vitepress/cache
-
-# Source code (kept local only)
-src/
-icons/
-_locales/
-assets/
-manifest.json
-package.json
-package-lock.json
-index.html
-sidepanel.html
-onboarding.html
-vite.config.ts
-tsconfig.json
-tsconfig.node.json
+docs/node_modules/
